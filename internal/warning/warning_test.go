@@ -47,8 +47,11 @@ func TestFromContext(t *testing.T) {
 		newW, newOk := FromContext(ctx)
 		require.True(t, newOk)
 		require.NotNil(t, newW)
-		assert.Equal(t, &Warner{fieldWarnings: map[string][]string{
-			"test_field": {"this is a test"},
+		assert.Equal(t, &Warner{fieldWarnings: []*pbwarnings.FieldWarning{
+			{
+				Name:        "test_field",
+				Description: "this is a test",
+			},
 		}}, newW)
 	})
 }

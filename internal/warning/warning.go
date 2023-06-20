@@ -5,7 +5,6 @@ package warning
 
 import (
 	"context"
-	"strings"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/hashicorp/boundary/internal/observability/event"
@@ -25,20 +24,24 @@ var (
 )
 
 type Warner struct {
-	fieldWarnings map[string][]string
+	fieldWarnings []*pbwarnings.FieldWarning
 }
 
 func (w *Warner) AddFieldWarning(field, warning string) {
-	w.fieldWarnings[field] = append(w.fieldWarnings[field], warning)
+	w.fieldWarnings = append(w.fieldWarnings, &pbwarnings.FieldWarning{
+		Name:        field,
+		Description: warning,
+	})
 }
 
+// FromContext gets a Warner from the provided context.
 func FromContext(ctx context.Context) (*Warner, bool) {
 	w, ok := ctx.Value(warnerContextkey).(*Warner)
 	return w, ok
 }
 
 func newContext(ctx context.Context) context.Context {
-	return context.WithValue(ctx, warnerContextkey, &Warner{fieldWarnings: make(map[string][]string)})
+	return context.WithValue(ctx, warnerContextkey, &Warner{})
 }
 
 func convertToGrpcHeaders(ctx context.Context) error {
@@ -51,13 +54,7 @@ func convertToGrpcHeaders(ctx context.Context) error {
 		return nil
 	}
 
-	pbWar := &pbwarnings.Warning{}
-	for k, v := range w.fieldWarnings {
-		pbWar.RequestFields = append(pbWar.RequestFields, &pbwarnings.FieldWarning{
-			Name:        k,
-			Description: strings.Join(v, ", "),
-		})
-	}
+	pbWar := &pbwarnings.Warning{RequestFields: w.fieldWarnings}
 	var buf []byte
 	var err error
 	if buf, err = protojson.Marshal(pbWar); err != nil {
@@ -69,6 +66,9 @@ func convertToGrpcHeaders(ctx context.Context) error {
 	return nil
 }
 
+// OutgoingHeaderMatcher provides a runtime.HeaderMatcherFunc that can be used
+// as an option when creating a new grpc gateway server muxer, and specifies
+// the boundary warning headers which can be forwarded on to the requesting client.
 func OutgoingHeaderMatcher() runtime.HeaderMatcherFunc {
 	return func(s string) (string, bool) {
 		if s == warningHeader {
