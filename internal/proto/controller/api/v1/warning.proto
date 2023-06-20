@@ -1,0 +1,23 @@
+// Copyright (c) HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
+syntax = "proto3";
+
+package controller.api.v1;
+
+option go_package = "github.com/hashicorp/boundary/internal/gen/controller/api;api";
+
+// FieldWarning contains warning information on a per field basis.
+message FieldWarning {
+  // The name of the field.
+  string name = 1;
+
+  // The description of the warning.
+  string description = 2;
+}
+
+// Warning is returned by the JSON API when a warning occurs.
+message Warning {
+  // Request-field-specific warning details.
+  repeated FieldWarning request_fields = 1 [json_name = "request_fields"];
+}
