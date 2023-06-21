@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"sync"
 	"testing"
 	"time"
 
@@ -23,31 +22,26 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-func TestFromContext(t *testing.T) {
+func TestForField(t *testing.T) {
 	t.Run("no warning on context", func(t *testing.T) {
-		w, ok := FromContext(context.Background())
-		require.False(t, ok)
-		require.Nil(t, w)
+		ctx := context.Background()
+		assert.Error(t, ForField(ctx, "test", "test value"))
 	})
 
 	t.Run("empty warning on context", func(t *testing.T) {
 		ctx := newContext(context.Background())
-		w, ok := FromContext(ctx)
-		require.True(t, ok)
-		require.NotNil(t, w)
+		newW, ok := ctx.Value(warnerContextkey).(*warner)
+		assert.True(t, ok)
+		assert.Empty(t, newW)
 	})
 
 	t.Run("warning added after added to context", func(t *testing.T) {
 		ctx := newContext(context.Background())
-		w, ok := FromContext(ctx)
-		require.True(t, ok)
-		require.NotNil(t, w)
-		w.AddFieldWarning("test_field", "this is a test")
+		assert.NoError(t, ForField(ctx, "test_field", "this is a test"))
 
-		newW, newOk := FromContext(ctx)
-		require.True(t, newOk)
-		require.NotNil(t, newW)
-		assert.Equal(t, &Warner{fieldWarnings: []*pbwarnings.FieldWarning{
+		newW, ok := ctx.Value(warnerContextkey).(*warner)
+		assert.True(t, ok)
+		assert.Equal(t, &warner{fieldWarnings: []*pbwarnings.FieldWarning{
 			{
 				Name:        "test_field",
 				Description: "this is a test",
@@ -76,21 +70,17 @@ func TestGrpcGatwayWiring(t *testing.T) {
 	grpcSrv := grpc.NewServer(grpc.UnaryInterceptor(GrpcInterceptor(ctx)))
 	opsservices.RegisterHealthServiceServer(grpcSrv, &fakeService{
 		addWarnFunc: func(ctx context.Context) {
-			g, ok := FromContext(ctx)
-			require.True(t, ok)
 			for _, w := range fieldWarnings {
-				g.AddFieldWarning(w.GetName(), w.GetDescription())
+				assert.NoError(t, ForField(ctx, w.GetName(), w.GetDescription()))
 			}
 		},
 	})
 
 	l := bufconn.Listen(int(globals.DefaultMaxRequestSize))
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		grpcSrv.Serve(l)
-	}()
+	go grpcSrv.Serve(l)
+	t.Cleanup(func() {
+		grpcSrv.GracefulStop()
+	})
 
 	gwMux := runtime.NewServeMux(
 		runtime.WithOutgoingHeaderMatcher(OutgoingHeaderMatcher()),
@@ -114,11 +104,10 @@ func TestGrpcGatwayWiring(t *testing.T) {
 
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		httpSrv.Serve(lis)
-	}()
+	go httpSrv.Serve(lis)
+	t.Cleanup(func() {
+		assert.NoError(t, httpSrv.Shutdown(ctx))
+	})
 
 	resp, err := http.Get(fmt.Sprintf("http://%s/health", lis.Addr().String()))
 	require.NoError(t, err)
@@ -126,10 +115,6 @@ func TestGrpcGatwayWiring(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, string(want), got)
-
-	assert.NoError(t, httpSrv.Shutdown(ctx))
-	grpcSrv.GracefulStop()
-	wg.Wait()
 }
 
 // fakeService is made to

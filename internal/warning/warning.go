@@ -20,33 +20,37 @@ type warningKey int
 
 var (
 	warnerContextkey warningKey
-	warningHeader    = "x-boundary-warning"
+	warningHeader    = "x-boundary-warnings"
 )
 
-type Warner struct {
+type warner struct {
 	fieldWarnings []*pbwarnings.FieldWarning
 }
 
-func (w *Warner) AddFieldWarning(field, warning string) {
+func (w *warner) addFieldWarning(field, warning string) {
 	w.fieldWarnings = append(w.fieldWarnings, &pbwarnings.FieldWarning{
 		Name:        field,
 		Description: warning,
 	})
 }
 
-// FromContext gets a Warner from the provided context.
-func FromContext(ctx context.Context) (*Warner, bool) {
-	w, ok := ctx.Value(warnerContextkey).(*Warner)
-	return w, ok
+func ForField(ctx context.Context, field, warning string) error {
+	const op = "warning.ForField"
+	w, ok := ctx.Value(warnerContextkey).(*warner)
+	if !ok {
+		return errors.New(ctx, errors.InvalidParameter, op, "context doesn't contain warning functionality")
+	}
+	w.addFieldWarning(field, warning)
+	return nil
 }
 
 func newContext(ctx context.Context) context.Context {
-	return context.WithValue(ctx, warnerContextkey, &Warner{})
+	return context.WithValue(ctx, warnerContextkey, &warner{})
 }
 
 func convertToGrpcHeaders(ctx context.Context) error {
 	const op = "warning.convertToGrpcHeaders"
-	w, ok := FromContext(ctx)
+	w, ok := ctx.Value(warnerContextkey).(*warner)
 	if !ok {
 		return errors.New(ctx, errors.InvalidParameter, op, "context doesn't have warner")
 	}
