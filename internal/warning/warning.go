@@ -5,6 +5,7 @@ package warning
 
 import (
 	"context"
+	"sync"
 
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/hashicorp/boundary/internal/observability/event"
@@ -23,15 +24,15 @@ var (
 	warningHeader    = "x-boundary-warnings"
 )
 
+// warner holds all the warnings generated for a given user facing API request.
+// It is thread safe.
 type warner struct {
-	fieldWarnings []*pbwarnings.FieldWarning
-}
+	fieldWarnings    []*pbwarnings.FieldWarning
+	actionWarnings   []*pbwarnings.ActionWarning
+	behaviorWarnings []*pbwarnings.BehaviorWarning
 
-func (w *warner) addFieldWarning(field, warning string) {
-	w.fieldWarnings = append(w.fieldWarnings, &pbwarnings.FieldWarning{
-		Name:        field,
-		Description: warning,
-	})
+	// l protects each of the slices in this struct.
+	l sync.Mutex
 }
 
 func ForField(ctx context.Context, field, warning string) error {
@@ -40,7 +41,41 @@ func ForField(ctx context.Context, field, warning string) error {
 	if !ok {
 		return errors.New(ctx, errors.InvalidParameter, op, "context doesn't contain warning functionality")
 	}
-	w.addFieldWarning(field, warning)
+	w.l.Lock()
+	defer w.l.Unlock()
+	w.fieldWarnings = append(w.fieldWarnings, &pbwarnings.FieldWarning{
+		Name:    field,
+		Warning: warning,
+	})
+	return nil
+}
+
+func ForAction(ctx context.Context, action, warning string) error {
+	const op = "warning.ForAction"
+	w, ok := ctx.Value(warnerContextkey).(*warner)
+	if !ok {
+		return errors.New(ctx, errors.InvalidParameter, op, "context doesn't contain warning functionality")
+	}
+	w.l.Lock()
+	defer w.l.Unlock()
+	w.actionWarnings = append(w.actionWarnings, &pbwarnings.ActionWarning{
+		Name:    action,
+		Warning: warning,
+	})
+	return nil
+}
+
+func ForBehavior(ctx context.Context, warning string) error {
+	const op = "warning.ForBehavior"
+	w, ok := ctx.Value(warnerContextkey).(*warner)
+	if !ok {
+		return errors.New(ctx, errors.InvalidParameter, op, "context doesn't contain warning functionality")
+	}
+	w.l.Lock()
+	defer w.l.Unlock()
+	w.behaviorWarnings = append(w.behaviorWarnings, &pbwarnings.BehaviorWarning{
+		Warning: warning,
+	})
 	return nil
 }
 
@@ -54,11 +89,17 @@ func convertToGrpcHeaders(ctx context.Context) error {
 	if !ok {
 		return errors.New(ctx, errors.InvalidParameter, op, "context doesn't have warner")
 	}
+	w.l.Lock()
+	defer w.l.Unlock()
 	if len(w.fieldWarnings) == 0 {
 		return nil
 	}
 
-	pbWar := &pbwarnings.Warning{RequestFields: w.fieldWarnings}
+	pbWar := &pbwarnings.Warning{
+		RequestFields: w.fieldWarnings,
+		Actions:       w.actionWarnings,
+		Behaviors:     w.behaviorWarnings,
+	}
 	var buf []byte
 	var err error
 	if buf, err = protojson.Marshal(pbWar); err != nil {

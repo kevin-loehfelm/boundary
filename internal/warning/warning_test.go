@@ -22,7 +22,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
-func TestForField(t *testing.T) {
+func TestContext(t *testing.T) {
 	t.Run("no warning on context", func(t *testing.T) {
 		ctx := context.Background()
 		assert.Error(t, ForField(ctx, "test", "test value"))
@@ -34,44 +34,97 @@ func TestForField(t *testing.T) {
 		assert.True(t, ok)
 		assert.Empty(t, newW)
 	})
+}
 
-	t.Run("warning added after added to context", func(t *testing.T) {
-		ctx := newContext(context.Background())
-		assert.NoError(t, ForField(ctx, "test_field", "this is a test"))
+func TestForField(t *testing.T) {
+	ctx := newContext(context.Background())
+	assert.NoError(t, ForField(ctx, "test_field", "this is a test"))
 
-		newW, ok := ctx.Value(warnerContextkey).(*warner)
-		assert.True(t, ok)
-		assert.Equal(t, &warner{fieldWarnings: []*pbwarnings.FieldWarning{
-			{
-				Name:        "test_field",
-				Description: "this is a test",
-			},
-		}}, newW)
-	})
+	newW, ok := ctx.Value(warnerContextkey).(*warner)
+	assert.True(t, ok)
+	assert.Equal(t, &warner{fieldWarnings: []*pbwarnings.FieldWarning{
+		{
+			Name:    "test_field",
+			Warning: "this is a test",
+		},
+	}}, newW)
+}
+
+func TestForAction(t *testing.T) {
+	ctx := newContext(context.Background())
+	assert.NoError(t, ForAction(ctx, "test_action", "this is a test"))
+
+	newW, ok := ctx.Value(warnerContextkey).(*warner)
+	assert.True(t, ok)
+	assert.Equal(t, &warner{actionWarnings: []*pbwarnings.ActionWarning{
+		{
+			Name:    "test_action",
+			Warning: "this is a test",
+		},
+	}}, newW)
+}
+
+func TestForBehavior(t *testing.T) {
+	ctx := newContext(context.Background())
+	assert.NoError(t, ForBehavior(ctx, "this is a test"))
+
+	newW, ok := ctx.Value(warnerContextkey).(*warner)
+	assert.True(t, ok)
+	assert.Equal(t, &warner{behaviorWarnings: []*pbwarnings.BehaviorWarning{
+		{
+			Warning: "this is a test",
+		},
+	}}, newW)
 }
 
 func TestGrpcGatwayWiring(t *testing.T) {
 	ctx := context.Background()
 	fieldWarnings := []*pbwarnings.FieldWarning{
 		{
-			Name:        "test_field_1",
-			Description: "test warning description 1",
+			Name:    "test_field_1",
+			Warning: "test warning description 1",
 		},
 		{
-			Name:        "test_field_2",
-			Description: "test warning description 2",
+			Name:    "test_field_2",
+			Warning: "test warning description 2",
+		},
+	}
+	actionWarnings := []*pbwarnings.ActionWarning{
+		{
+			Name:    "test_action1",
+			Warning: "test warning description 1",
+		},
+		{
+			Name:    "test_action2",
+			Warning: "test warning description 2",
+		},
+	}
+	behaviorWarnings := []*pbwarnings.BehaviorWarning{
+		{
+			Warning: "test warning 1",
+		},
+		{
+			Warning: "test warning 2",
 		},
 	}
 
 	want, err := protojson.Marshal(&pbwarnings.Warning{
 		RequestFields: fieldWarnings,
+		Actions:       actionWarnings,
+		Behaviors:     behaviorWarnings,
 	})
 
 	grpcSrv := grpc.NewServer(grpc.UnaryInterceptor(GrpcInterceptor(ctx)))
 	opsservices.RegisterHealthServiceServer(grpcSrv, &fakeService{
 		addWarnFunc: func(ctx context.Context) {
 			for _, w := range fieldWarnings {
-				assert.NoError(t, ForField(ctx, w.GetName(), w.GetDescription()))
+				assert.NoError(t, ForField(ctx, w.GetName(), w.GetWarning()))
+			}
+			for _, w := range actionWarnings {
+				assert.NoError(t, ForAction(ctx, w.GetName(), w.GetWarning()))
+			}
+			for _, w := range behaviorWarnings {
+				assert.NoError(t, ForBehavior(ctx, w.GetWarning()))
 			}
 		},
 	})
