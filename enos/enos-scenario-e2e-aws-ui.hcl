@@ -1,7 +1,7 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: MPL-2.0
 
-scenario "e2e_ui" {
+scenario "e2e_aws_ui" {
   terraform_cli = terraform_cli.default
   terraform     = terraform.default
   providers = [
