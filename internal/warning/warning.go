@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/hashicorp/boundary/internal/errors"
 	pbwarnings "github.com/hashicorp/boundary/internal/gen/controller/api"
@@ -91,14 +92,15 @@ func convertToGrpcHeaders(ctx context.Context) error {
 	}
 	w.l.Lock()
 	defer w.l.Unlock()
-	if len(w.fieldWarnings) == 0 {
-		return nil
-	}
 
 	pbWar := &pbwarnings.Warning{
 		RequestFields: w.fieldWarnings,
 		Actions:       w.actionWarnings,
 		Behaviors:     w.behaviorWarnings,
+	}
+	if proto.Equal(pbWar, &pbwarnings.Warning{}) {
+		// no warnings included
+		return nil
 	}
 	var buf []byte
 	var err error
