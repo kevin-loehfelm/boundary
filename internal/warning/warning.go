@@ -81,7 +81,11 @@ func ForBehavior(ctx context.Context, warning string) error {
 }
 
 func newContext(ctx context.Context) context.Context {
-	return context.WithValue(ctx, warnerContextkey, &warner{})
+	ctx = context.WithValue(ctx, warnerContextkey, &warner{})
+	if err := ForBehavior(ctx, "this is an example warning"); err != nil {
+		panic(err)
+	}
+	return ctx
 }
 
 func convertToGrpcHeaders(ctx context.Context) error {

@@ -513,6 +513,7 @@ func wrapHandlerWithCors(h http.Handler, props HandlerProperties) http.Handler {
 		if req.Method == http.MethodOptions {
 			w.Header().Set("Access-Control-Allow-Methods", strings.Join(allowedMethods, ", "))
 			w.Header().Set("Access-Control-Allow-Headers", strings.Join(allowedHeaders, ", "))
+			//w.Header().Set("Access-Control-Expose-Headers", strings.Join([]string{"X-Boundary-Warnings"}, ", "))
 			w.Header().Set("Access-Control-Max-Age", "300")
 			w.WriteHeader(http.StatusNoContent)
 			return
