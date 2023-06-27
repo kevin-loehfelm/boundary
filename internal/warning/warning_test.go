@@ -110,22 +110,6 @@ func TestGrpcGatwayWiring(t *testing.T) {
 		assert.Equal(t, string(want), got)
 	})
 
-	t.Run("action apiWarning only", func(t *testing.T) {
-		service.addWarnFunc = func(ctx context.Context) {
-			assert.NoError(t, Warn(ctx, ActionDeprecatedAddCredentialLibraries))
-		}
-		resp, err := http.Get(fmt.Sprintf("http://%s/health", lis.Addr().String()))
-		require.NoError(t, err)
-		got := resp.Header.Get(warningHeader)
-		require.NoError(t, err)
-
-		want, err := protojson.Marshal(&pbwarnings.WarningResponse{
-			Warnings: []*pbwarnings.Warning{ActionDeprecatedAddCredentialLibraries.toProto()},
-		})
-		require.NoError(t, err)
-		assert.Equal(t, string(want), got)
-	})
-
 	t.Run("behavior apiWarning only", func(t *testing.T) {
 		service.addWarnFunc = func(ctx context.Context) {
 			assert.NoError(t, Warn(ctx, OidcAuthMethodInactiveCannotBeUsed))
@@ -144,7 +128,6 @@ func TestGrpcGatwayWiring(t *testing.T) {
 	t.Run("all apiWarning types", func(t *testing.T) {
 		service.addWarnFunc = func(ctx context.Context) {
 			assert.NoError(t, Warn(ctx, FieldDeprecatedTargetWorkerFilters))
-			assert.NoError(t, Warn(ctx, ActionDeprecatedAddCredentialLibraries))
 			assert.NoError(t, Warn(ctx, OidcAuthMethodInactiveCannotBeUsed))
 		}
 		resp, err := http.Get(fmt.Sprintf("http://%s/health", lis.Addr().String()))
@@ -155,7 +138,6 @@ func TestGrpcGatwayWiring(t *testing.T) {
 		want, err := protojson.Marshal(&pbwarnings.WarningResponse{
 			Warnings: []*pbwarnings.Warning{
 				FieldDeprecatedTargetWorkerFilters.toProto(),
-				ActionDeprecatedAddCredentialLibraries.toProto(),
 				OidcAuthMethodInactiveCannotBeUsed.toProto(),
 			},
 		})

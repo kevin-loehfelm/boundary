@@ -34,7 +34,7 @@ message BehaviorWarning {
 
 // A warning in the Boundary system.
 message Warning {
-  int32 code = 1;
+  uint32 code = 1;
   oneof warning {
     FieldWarning request_field = 2 [json_name = "request_fields"];
     ActionWarning action = 3;
