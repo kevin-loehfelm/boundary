@@ -231,7 +231,7 @@ func (x *Warning) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use toProto.ProtoReflect.Descriptor instead.
+// Deprecated: Use Warning.ProtoReflect.Descriptor instead.
 func (*Warning) Descriptor() ([]byte, []int) {
 	return file_controller_api_v1_warning_proto_rawDescGZIP(), []int{3}
 }
@@ -403,14 +403,14 @@ var file_controller_api_v1_warning_proto_goTypes = []interface{}{
 	(*FieldWarning)(nil),    // 0: controller.api.v1.FieldWarning
 	(*ActionWarning)(nil),   // 1: controller.api.v1.ActionWarning
 	(*BehaviorWarning)(nil), // 2: controller.api.v1.BehaviorWarning
-	(*Warning)(nil),         // 3: controller.api.v1.toProto
+	(*Warning)(nil),         // 3: controller.api.v1.Warning
 	(*WarningResponse)(nil), // 4: controller.api.v1.WarningResponse
 }
 var file_controller_api_v1_warning_proto_depIdxs = []int32{
-	0, // 0: controller.api.v1.toProto.request_field:type_name -> controller.api.v1.FieldWarning
-	1, // 1: controller.api.v1.toProto.action:type_name -> controller.api.v1.ActionWarning
-	2, // 2: controller.api.v1.toProto.behavior:type_name -> controller.api.v1.BehaviorWarning
-	3, // 3: controller.api.v1.WarningResponse.warnings:type_name -> controller.api.v1.toProto
+	0, // 0: controller.api.v1.Warning.request_field:type_name -> controller.api.v1.FieldWarning
+	1, // 1: controller.api.v1.Warning.action:type_name -> controller.api.v1.ActionWarning
+	2, // 2: controller.api.v1.Warning.behavior:type_name -> controller.api.v1.BehaviorWarning
+	3, // 3: controller.api.v1.WarningResponse.warnings:type_name -> controller.api.v1.Warning
 	4, // [4:4] is the sub-list for method output_type
 	4, // [4:4] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name
