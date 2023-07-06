@@ -235,7 +235,8 @@ type Connection struct {
 	*container
 	multiplexed bool
 
-	Meta *ConnectionRecordingMeta
+	Meta    *ConnectionRecordingMeta
+	session *Session
 }
 
 // NewConnection creates a Connection container for a given connection id.
@@ -269,6 +270,7 @@ func (s *Session) NewConnection(ctx context.Context, meta *ConnectionRecordingMe
 		container:   nc,
 		multiplexed: s.multiplexed,
 		Meta:        meta,
+		session:     s,
 	}, nil
 }
 
@@ -317,6 +319,7 @@ func (s *Session) OpenConnection(ctx context.Context, connId string) (*Connectio
 	connection := &Connection{
 		container: cc,
 		Meta:      sm,
+		session:   s,
 	}
 
 	return connection, nil
@@ -402,9 +405,20 @@ func (c *Connection) OpenChannel(ctx context.Context, chanId string) (*Channel, 
 		return nil, err
 	}
 
+	af, ok := ChannelSummaryAllocFuncs.Get(c.session.Meta.Protocol)
+	if !ok {
+		return nil, fmt.Errorf("%s: failed to get summary type", op)
+	}
+
+	summary := af(ctx)
+	if err := cc.decodeJsonFile(ctx, fmt.Sprintf(summaryFileNameTemplate, channelContainer), summary); err != nil {
+		return nil, err
+	}
+
 	channel := &Channel{
 		container: cc,
 		Meta:      sm,
+		Summary:   summary,
 	}
 
 	return channel, nil
@@ -464,7 +478,8 @@ func (c *Connection) Close(ctx context.Context) error {
 type Channel struct {
 	*container
 
-	Meta *ChannelRecordingMeta
+	Meta    *ChannelRecordingMeta
+	Summary ChannelSummary
 }
 
 // Close closes the Channel container.
