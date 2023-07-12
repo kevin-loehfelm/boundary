@@ -12,7 +12,13 @@ env:
   DOCKER_MIRROR: docker.mirror.hashicorp.services
 
 jobs:
+  # verify-changes determines if the changes are only for docs (website)
+  verify-changes:
+    uses: ./.github/workflows/verify_changes.yml
+
   setup:
+    needs: verify-changes
+    if: ${{ needs.verify-changes.outputs.is_docs_change == 'false' }}
     outputs:
       go-version: ${{ steps.get-go-version.outputs.go-version }}
       cache-go-build: ${{ steps.go-cache-paths.outputs.go-build }}

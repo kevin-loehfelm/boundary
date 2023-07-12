@@ -17,7 +17,13 @@ permissions:
   actions: write
 
 jobs:
+  # verify-changes determines if the changes are only for docs (website)
+  verify-changes:
+    uses: ./.github/workflows/verify_changes.yml
+
   set-product-version:
+    needs: verify-changes
+    if: ${{ needs.verify-changes.outputs.is_docs_change == 'false' }}
     runs-on: ${{ fromJSON(vars.BUILDER_LINUX) }}
     outputs:
       product-version: ${{ steps.set-product-version.outputs.product-version }}
@@ -412,6 +418,7 @@ jobs:
       docker-image-name: ${{ needs.build-docker.outputs.name }}
       docker-image-file: "boundary_default_linux_amd64_${{ needs.set-product-version.outputs.product-version }}_${{ github.sha }}.docker.dev.tar"
     secrets: inherit
+
   bats:
     uses: ./.github/workflows/test-cli-ui_oss.yml
     if: github.event.pull_request.head.repo.fork != 'true'

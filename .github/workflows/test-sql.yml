@@ -9,7 +9,13 @@ permissions:
   contents: read
 
 jobs:
+  # verify-changes determines if the changes are only for docs (website)
+  verify-changes:
+    uses: ./.github/workflows/verify_changes.yml
+
   test-sql:
+    needs: verify-changes
+    if: ${{ needs.verify-changes.outputs.is_docs_change == 'false' }}
     runs-on: ${{ fromJSON(vars.RUNNER) }}
     strategy:
       matrix:
